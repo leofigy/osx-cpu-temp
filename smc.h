@@ -88,7 +88,13 @@ typedef struct {
     SMCBytes_t bytes;
 } SMCVal_t;
 
+typedef struct {
+    int number;
+    float* speeds;
+} Fans;
+
 // prototypes
 double SMCGetTemperature(char* key);
 kern_return_t SMCSetFanRpm(char* key, int rpm);
 int SMCGetFanRpm(char* key);
+Fans getFanInfo();

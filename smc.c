@@ -286,20 +286,71 @@ void readAndPrintFanRPMs(void)
 
             pct *= 100.f;
             printf("Fan %d - %s at %.0f RPM (%.0f%%)\n", i, name, rpm, pct);
-
-            //sprintf(key, "F%dSf", i);
-            //SMCReadKey(key, &val);
-            //printf("    Safe speed   : %.0f\n", strtof(val.bytes, val.dataSize, 2));
-            //sprintf(key, "F%dTg", i);
-            //SMCReadKey(key, &val);
-            //printf("    Target speed : %.0f\n", strtof(val.bytes, val.dataSize, 2));
-            //SMCReadKey("FS! ", &val);
-            //if ((_strtoul((char *)val.bytes, 2, 16) & (1 << i)) == 0)
-            //    printf("    Mode         : auto\n");
-            //else
-            //    printf("    Mode         : forced\n");
         }
     }
+}
+
+Fans getFanInfo(){
+    kern_return_t result;
+    SMCVal_t val;
+    UInt32Char_t key;
+
+    Fans summary;
+    summary.number = 0;
+    summary.speeds = NULL;
+
+    int totalFans, i;
+
+    result = SMCReadKey("FNum", &val);
+
+    if (result == kIOReturnSuccess) {
+        totalFans = _strtoul((char*)val.bytes, val.dataSize, 10);
+        summary.number = totalFans;
+        summary.speeds =  (float*) malloc(sizeof(float) * summary.number);
+
+        printf("Num fans: %d\n", totalFans);
+        for (i = 0; i < totalFans; i++) {
+
+            summary.speeds[i] = 0;
+
+            sprintf(key, "F%dID", i);
+            result = SMCReadKey(key, &val);
+            if (result != kIOReturnSuccess) {
+                continue;
+            }
+            char* name = val.bytes + 4;
+
+            sprintf(key, "F%dAc", i);
+            float actual_speed = SMCGetFanRPM(key);
+            if (actual_speed < 0.f) {
+                continue;
+            }
+
+            sprintf(key, "F%dMn", i);
+            float minimum_speed = SMCGetFanRPM(key);
+            if (minimum_speed < 0.f) {
+                continue;
+            }
+
+            sprintf(key, "F%dMx", i);
+            float maximum_speed = SMCGetFanRPM(key);
+            if (maximum_speed < 0.f) {
+                continue;
+            }
+
+            float rpm = actual_speed - minimum_speed;
+            if (rpm < 0.f) {
+                rpm = 0.f;
+            }
+            float pct = rpm / (maximum_speed - minimum_speed);
+
+            pct *= 100.f;
+
+            summary.speeds[i] = pct;
+            printf("Fan %d - %s at %.0f RPM (%.0f%%)\n", i, name, rpm, pct);
+        }
+    }
+    return summary;
 }
 
 int main(int argc, char* argv[])
